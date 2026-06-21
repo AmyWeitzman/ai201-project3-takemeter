@@ -585,6 +585,58 @@ The model is finally making decent predictions across all three classes. The con
 
 ---
 
+## Inter-Annotator Reliability
+ 
+I gave a friend the label definitions and the dataset unlabeled and asked them to classify the first 36 posts.
+
+### Results
+
+| Metric | Value |
+| -------- | ------- |
+| Posts labeled | 36 |
+| Agreement | 27 / 35 (75.0%) |
+| Cohen's kappa | 0.586 |
+
+A kappa of 0.586 falls at the upper end of the "moderate" range (0.41–0.60) by Landis & Koch (1977) convention, close to the "substantial" threshold (0.61).
+
+### Where We Disagreed
+
+9 posts were labeled differently. 7 of those 9 were cases where I labeled a post `analysis` and the second person labeled it `opinion`. One was `discussion` (me) vs. `opinion` (second person). One was `analysis` (me) vs. `discussion` (second person).
+
+**Pattern 1: Specificity mistaken for evidence (7 cases — all `analysis` → `opinion`)**
+
+The most common disagreement was posts that named specific episodes, seasons, contestants, or institutions, which creates an evidence-like feel, but whose core claim was still an unsupported assertion.
+
+- *"The constant, blatant sponsorships are diluting the value of the show"* — me: `analysis` (lists BMW, Chipotle, Saratoga Springs, Wells Fargo by name; author cites marketing expertise). Second person: `opinion`. The claim that sponsorships "dilute value" is never measured - there are no viewership numbers, no before/after comparison, no external metric. The named sponsors are detail, not proof.
+
+- *"Just saw Season 8 Restaurant Wars — Did Dale pull the greatest move ever in RW history?"* — me: `analysis`. Second person: `opinion`. "Greatest move in Restaurant Wars history" is a claim with no comparison to other Restaurant Wars moments across any season.
+
+- *"Top Chef Season 1 — San Francisco"* (long structured review with pros/cons sections) — me: `analysis` (I flagged this as a boundary case in the dataset notes). Second person: `opinion`. The structure mimics analysis, but all evidence is personal recollection. No verifiable data is cited; another reader cannot check the "evidence."
+
+- *"Robin in season 6 is seriously bullied"* — me: `analysis` (names specific chefs: Eli, Mike Isabella, Mike Voltaggio). Second person: `opinion`. Naming the chefs provides texture, but "treated so so poorly" is a subjective assessment. The post doesn't establish a standard for what counts as bullying or measure behavior against it.
+
+- *"Blind judging"* — me: `analysis`. Second person: `opinion`. Proposes changing the blind judging frequency and asks "does anyone know why?" No evidence is offered that blind judging improves outcomes.
+
+- *"WHY NOT ATLANTA?"* (×2) — me: `analysis` (cites an AJC article). Second person: `opinion`. References one article but builds no argument; the post pivots to asking the community what challenges they'd want to see.
+
+**Pattern 2: Question-framing boundary — `discussion` vs. `opinion` (1 case)**
+
+- *"Seafood pizza?"* — me: `discussion`. Second person: `opinion`. The post opens as a question ("Is seafood pizza really uncommon in North America?") but spends most of its length arguing that seafood pizza is in fact common, citing Australian and Italian cultural context. The second person applied the label rule "the question must be the point, not a wrapper around a take." I flagged this as a boundary case in the dataset notes - both readings are defensible.
+
+**Pattern 3: `analysis` vs. `discussion` (1 case)**
+
+- *"Non-chefs at judges' table?"* — me: `analysis` (observes a structural change in the show across seasons). Second person: `discussion` (the post ends "I'm interested in what others think of this change," which the second person read as the primary purpose).
+
+### What This Reveals
+
+The **`analysis` vs. `opinion` boundary** is the hardest to apply consistently. All 7 disagreements in that direction had the same root: a post that names specific people, seasons, or institutions seems like analysis because of its specificity, but the specifics accompany the claim rather than support it logically.
+
+The key in the label definition - *"the reader can point to the supporting material in the text"* works cleanly for unambiguous cases like fantasy-point spreadsheets or episode-by-episode counts. It breaks down when a post is highly detailed but still asserts rather than argues. One clarification that could help future annotators: **specificity and evidence are not the same thing**. Evidence must connect logically to the claim it is supposed to prove; detail that merely makes a claim feel credible without proving it is still just detail.
+
+The `discussion` / `opinion` boundary was the source of only one disagreement in this sample, which matches the finding from the model evaluation: that confusion pair was less frequent than `analysis`/`opinion` but more consistent when it did appear.
+
+---
+
 ## Reflection
 
 There were many posts that captured aspects of multiple labels so the model got confused and predicted the wrong one. Rather than interpretting the intent of the post as a whole, which is what I did to label them, the model seemed to try to match part of a label definition and then chose that one even if the post exhibited parts of multiple label definitions or the entire post as a whole better matched another label. This indicates my definitions probably weren't distinct enough so the model couldn't clearly detect which post was which type. There were also far fewer `analysis` examples for the model to learn from in the first place.
