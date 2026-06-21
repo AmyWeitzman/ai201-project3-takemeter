@@ -668,11 +668,13 @@ After the hyperparameter fixes, confidence scores jumped dramatically, but all 5
 
 The model went from "uncertain about everything" to "very sure even when wrong."
 
-### What this means for calibration
+### What this means
 
 A well-calibrated model should be right more often when it's confident. The 5 wrong predictions above average ~0.78 confidence, which is high for a model with only 65.8% overall accuracy. If the model were perfectly calibrated, predictions at 80% confidence should be correct 80% of the time - but these high-confidence predictions are all wrong.
 
 This is a sign of overconfidence: the model learned strong heuristics (direct address = discussion; certain phrasing patterns = opinion) and applies them at high confidence even when the pattern fires incorrectly. The model has no "I'm not sure" mode for the cases where its learned shortcuts misfire.
+
+Thus, higher confidence predictions don't necessarily correspond to higher accuracy.
 
 ---
 
@@ -701,6 +703,45 @@ The Iteration 3 confusion matrix shows the specific ways the model's shortcuts f
 `analysis` is the only label that confuses in both directions — posts go to it accidentally (1 opinion -> analysis) and out of it in both directions (3 -> opinion, 2 -> discussion). The model's analysis predictions have decent precision (0.67) but bad recall (0.29). This means when the model does predict analysis, it's usually right - but it's very reluctant to predict analysis at all. The posts that do trigger analysis predictions are the clearest-cut ones (long structured recaps, fantasy point tables), and the ambiguous analysis posts (ones with an assertive voice or sharing framing) get labeled as opinion or discussion instead.
 
 In short: the model learned three basic heuristics (invitation language -> discussion; confident assertion -> opinion; structured data -> analysis). The heuristics are correct often enough to get 65.8% accuracy but break down exactly at the label boundaries.
+
+---
+
+## Deployed Interface
+
+A Gradio web app (`app.py`) lets you paste any r/TopChef post and see the predicted label and confidence score in real time.
+
+### How it works
+
+The interface loads the fine-tuned DistilBERT model from the `takemeter-model/` folder (saved by the notebook during training). It runs the post through the model and shows the predicted label, the confidence for that label, and the full score breakdown across all three classes. If the model folder is not present, it falls back to the Groq API baseline.
+
+### Setup
+
+### Step 1 - Configura environment
+- Make sure you have a `.env` file with your `GROQ_API_KEY`
+- Make sure you have a copy of the fine-tuned model in a folder called `takemeter-model`
+
+### Step 2 — Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Step 3 — Run
+
+```bash
+python app.py
+```
+
+Open the URL printed in the terminal (usually `http://127.0.0.1:7860`). Paste any post in the text box and click **Classify**.
+
+### Example output
+
+```text
+Post:    "Canada? More like soundstageada — only 2 of the first 10 challenges were outdoors."
+Label:   analysis
+Confidence: 84%
+Scores:  analysis: 84%  |  discussion: 9%  |  opinion: 7%
+```
 
 ---
 
