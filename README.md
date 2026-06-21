@@ -637,6 +637,73 @@ The `discussion` / `opinion` boundary was the source of only one disagreement in
 
 ---
 
+## Confidence Calibration
+
+The sample classifications in the Evaluation Report include confidence scores for each prediction. These scores tell us whether the model's stated certainty actually tracks its correctness.
+
+### Iterations 1 and 2: No meaningful confidence signal
+
+When the model was collapsed to predicting `discussion` for everything, confidence scores were uniformly low across the board:
+
+| Prediction | Correct? | Confidence |
+| -------- | -------- | -------- |
+| discussion (Iter 1) | ✓ | 0.46 |
+| discussion (Iter 1) | ✗ | 0.33–0.40 |
+| discussion (Iter 2) | ✓ | 0.48 |
+| discussion (Iter 2) | ✗ | 0.32–0.40 |
+
+The correct predictions (all happening to be `discussion`) averaged slightly higher confidence than wrong ones (~0.47 vs. ~0.36), but the gap is small. The model had no real signal - it was assigning near-uniform probabilities and barely edging the majority-class prediction above 0.50.
+
+### Iteration 3: High confidence, but on wrong predictions
+
+After the hyperparameter fixes, confidence scores jumped dramatically, but all 5 of the documented wrong predictions in Iteration 3 are high-confidence:
+
+| Post (truncated) | True | Predicted | Confidence |
+| -------- | -------- | -------- | -------- |
+| "When criticism goes back in their face" | analysis | opinion | 0.76 |
+| "Television shows do not need teaser previews" | analysis | discussion | 0.74 |
+| "How Canada/Toronto could have been" | opinion | analysis | 0.69 |
+| "Help me describe Top Chef and LCK to my boyfriend" | discussion | opinion | 0.82 |
+| "Anya and her pine cones" | opinion | discussion | 0.90 |
+
+The model went from "uncertain about everything" to "very sure even when wrong."
+
+### What this means for calibration
+
+A well-calibrated model should be right more often when it's confident. The 5 wrong predictions above average ~0.78 confidence, which is high for a model with only 65.8% overall accuracy. If the model were perfectly calibrated, predictions at 80% confidence should be correct 80% of the time - but these high-confidence predictions are all wrong.
+
+This is a sign of overconfidence: the model learned strong heuristics (direct address = discussion; certain phrasing patterns = opinion) and applies them at high confidence even when the pattern fires incorrectly. The model has no "I'm not sure" mode for the cases where its learned shortcuts misfire.
+
+---
+
+## Error Pattern Analysis
+
+The wrong predictions across all 3 iterations point to a few consistent, systematic problems rather than random noise.
+
+### Pattern 1: The model learns label-frequency bias before it learns label meaning
+
+In Iterations 1 and 2, the model predicted `discussion` for nearly every post (Iteration 1: 30/30; Iteration 2: 32/33). `discussion` was 46–49% of the training data (the largest class) so the model minimized training loss by almost alway predicting it. This reveals that the model's first instinct when confused is to predict the most common class. Even in Iteration 3, after adding more data and switching to macro F1 as the checkpoint metric, `analysis` recall stayed at 29% - the model still under-predicts the minority class even when it's learned to make real 3-class distinctions.
+
+### Pattern 2: Surface tokens override semantic structure
+
+The Iteration 3 confusion matrix shows the specific ways the model's shortcuts fire incorrectly:
+
+- **Opinion posts predicted as `discussion` (4 cases)**: These are all opinion posts that open with invitation language — "Has anyone else noticed...", "Hey all! What observations have you noticed?", "What do you think of...". The model learned that invitation phrasing signals `discussion` and applies it regardless of what follows. The 4-case cluster here is the exact "question-wrapped opinion" edge case from the label stress test.
+
+- **Analysis posts predicted as `opinion` (3 cases)**: These are all assertive analysis posts — the author makes a specific, evidenced claim but does so in a confident, editorial voice. The model learned that assertive tone signals `opinion` and applies it even when the post contains enumerated evidence. 
+
+- **Analysis posts predicted as `discussion` (2 cases)**: Two analysis posts that use sharing or update framing ("I've noticed this has happened multiple times"; "Let's talk about...") get predicted as discussion. The model picks up on the sharing before it processes the actual argument.
+
+- **Discussion posts predicted as `opinion` (3 cases)**: Discussion posts that open with a strong personal hook ("I feel like the show would be better if...", "I think because...") get labeled as opinion. Personal-sentiment language at the start of the post overrides the post's actual purpose of inviting community input.
+
+### Pattern 3: Analysis is squeezed from both sides
+
+`analysis` is the only label that confuses in both directions — posts go to it accidentally (1 opinion -> analysis) and out of it in both directions (3 -> opinion, 2 -> discussion). The model's analysis predictions have decent precision (0.67) but bad recall (0.29). This means when the model does predict analysis, it's usually right - but it's very reluctant to predict analysis at all. The posts that do trigger analysis predictions are the clearest-cut ones (long structured recaps, fantasy point tables), and the ambiguous analysis posts (ones with an assertive voice or sharing framing) get labeled as opinion or discussion instead.
+
+In short: the model learned three basic heuristics (invitation language -> discussion; confident assertion -> opinion; structured data -> analysis). The heuristics are correct often enough to get 65.8% accuracy but break down exactly at the label boundaries.
+
+---
+
 ## Reflection
 
 There were many posts that captured aspects of multiple labels so the model got confused and predicted the wrong one. Rather than interpretting the intent of the post as a whole, which is what I did to label them, the model seemed to try to match part of a label definition and then chose that one even if the post exhibited parts of multiple label definitions or the entire post as a whole better matched another label. This indicates my definitions probably weren't distinct enough so the model couldn't clearly detect which post was which type. There were also far fewer `analysis` examples for the model to learn from in the first place.
